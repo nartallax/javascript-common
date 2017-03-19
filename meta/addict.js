@@ -12,15 +12,18 @@
 		
 	получить нодопакет:
 		Addict.requestExternalPackage(имя_пакета) => пакет
-		alias: pkg.requestExternalPackage(имя_пакета)
+		alias: pkg.external(имя_пакета)
 		
 	определить точку входа:			
 		Addict.defineMain(функция) => Addict
+		alias: Addict.main
 		
 	определить поисковики зависимостей:
 		Addict.defineResolver(Resolver) => Addict
 		Addict.Resolver.for(тип_среды, аргумент_резолвера, аргумент_резолвера, ...) => Resolver
-		шорткат для двух предыдущих функций: Addict.defineResolver(тип_среды, аргумент_резолвера, аргумент_резолвера, ...) => Addict
+		шорткаты для двух предыдущих функций: 
+			Addict.defineResolver(тип_среды, аргумент_резолвера, аргумент_резолвера, ...) => Addict
+			Addict.resolvers([тип_среды, аргументы...], [тип_среды, аргументы...], ...)
 		
 		примеры аргументов:
 		Addict.Resolver.for('node', {путь_к_директории_с_зависимостями -> префикс_зависимостей_в_директории, ...}[, регексп_фильтра_пути_к_файлам]) => Resolver
@@ -72,9 +75,20 @@
 		
 */
 var Addict = (() => {
+	'use strict';
 	
 	var fail = (message, error) => {
-		throw new Error("Addict error.\n" + message + (error && ("\nInner error: " + error)));
+		var errString = '';
+		
+		if(error){
+			console.log(error);
+			errString += "\nInner error: " + error;
+			error.isAddictError || (errString += '\n' + error.stack);
+		}
+	
+		var newErr = new Error("Addict error.\n" + message + errString);
+		newErr.isAddictError = true;
+		throw newErr;
 	}
 	
 	var Addict = function(){
@@ -85,7 +99,7 @@ var Addict = (() => {
 		this.codeFixers = [];
 		this.isStartedUp = false;
 		this.resolver = null;
-		setImmediate(() => this.startTimeoutHandle || fail('Expected application entry point to be defined synchronously at startup.'));
+		setImmediate(() => this.startTimeoutHandle || this.isStartedUp || fail('Expected application entry point to be defined synchronously at startup.'));
 		
 		this.registerCodeFixer(new Addict.CodeFixer('auto_use_strict', code => '"use strict";\n' + code));
 	};
@@ -93,19 +107,28 @@ var Addict = (() => {
 	// Environment содержит информацию о среде, в которой в данный момент исполняется код
 	Addict.Environment = (() => {
 		
-		var Environment = function(type){ this.type = type }
+		var Environment = function(type, global){ this.type = type; this.globals = global }
 		
 		var detectors = {
-			'browser': new Function("try { return this === window } catch(e) { return false }"),
-			'node': new Function("try {return this === global } catch(e){ return false }")
+			//'browser': new Function("try { return this === window } catch(e) { return false }"),
+			'browser': new Function("return this && typeof(window) !== 'undefined' && this === window"),
+			//'node': new Function("try { return this === global } catch(e){ return false }")
+			'node': new Function("return this && typeof(global) !== 'undefined' && this === global"),
+		};
+		
+		var globals = {
+			'node': () => global,
+			'browser': () => window
 		}
 		
 		Environment.detect = () => {
-			var envs = Object.keys(detectors).filter(key => detectors[key]());
+			var envs = Object.keys(detectors).filter(key => detectors[key].call(null));
 			(envs.length > 1) && fail("Could not detect environment: multiple detectors triggered (" + envs.join(', ') + ")");
 			(envs.length < 1) && fail("Could not detect environment: no detectors triggered");
 			return new Environment(envs[0]);
 		}
+		
+		Environment.prototype.getGlobal = function(){ return this.globals }
 		
 		return Environment;
 
@@ -146,7 +169,7 @@ var Addict = (() => {
 		}
 		
 		var internalResolvers = {
-			'node': rootPrefixMap => {
+			'node': (rootPrefixMap, filePathRegexp) => {
 				filePathRegexp || (filePathRegexp = /\.[Jj][Ss]$/);
 				
 				var fs, path;
@@ -156,17 +179,17 @@ var Addict = (() => {
 					fs.readdirSync(root)
 						.forEach(entryName => {
 							var entryPath = path.join(root, entryName)
-							var fullEntryName = prefix + '.' + entryName
+							var fullEntryName = (prefix? prefix + '.': '') + entryName.toLowerCase().replace(/\.js$/, '')
 							if(fs.statSync(entryPath).isDirectory()){
 								getPackageMapForDirectory(entryPath, fullEntryName, container);
 							} else {
 								if(entryPath.match(filePathRegexp)){
-									if(!PackageName.isGood(entryName)){
-										console.error("Package at " + entryPath + ' resolved to name "' + entryName + 
+									if(!Addict.PackageName.isGood(fullEntryName)){
+										console.error("Package at " + entryPath + ' resolved to name "' + fullEntryName + 
 											'", which is not valid package name. This package is skipped and will not be accessible.'
 										);
 									} else {
-										container[entryName] = entryPath;
+										container[fullEntryName] = entryPath;
 									}
 								}
 							}
@@ -177,12 +200,12 @@ var Addict = (() => {
 					fs || (fs = require('fs'));
 					path || (path = require('path'));
 					var result = {};
-					Object.keys(rootPrefixMap).forEach(root => getPackageMapForRoot(root, rootPrefixMap[root], result))
+					Object.keys(rootPrefixMap).forEach(root => getPackageMapForDirectory(root, rootPrefixMap[root], result))
 					return result;
 				}
 				
 				return name => {
-					packageMap || (packageMap = getTotalPackageMap(rootPrefixMap))
+					packageMap || (packageMap = getTotalPackageMap(rootPrefixMap));
 					(name in packageMap) || fail('Could not resolve package "' + name + '": not found anywhere.');
 					return fs.readFileSync(packageMap[name], 'utf8');
 				}
@@ -229,6 +252,10 @@ var Addict = (() => {
 		}
 		
 		DefinitionStorage.prototype = {
+			forceStore: function(name, def){
+				this.defs[name] = def;
+			},
+			
 			store: function(name, def){
 				(this.expecting !== null)
 					|| fail('Unexpected definition of package "' + name + '". Packages must not define themselves at will.');
@@ -236,11 +263,11 @@ var Addict = (() => {
 				(name === this.expecting) 
 					|| fail('Was expecting the definition of package "' + this.expecting + '" while got definition of "' + name + '".');
 					
-				has(name)
+				this.has(name)
 					&& fail('Duplicate definition of package "' + name + '".');
 					
 				this.expecting = null;
-				this.defs[name] = def;
+				this.forceStore(name, def);
 			},
 			
 			has: function(name){ return name in this.defs },
@@ -326,15 +353,24 @@ var Addict = (() => {
 				}
 			},
 			
-			forceExecuteDefiniton: function(name, definition){
+			forceExecuteDefinition: function(name, definition){
 				this.checkForCircularDependenciesFrom(name);
 				
 				this.executionStack.push({name: name, internal:[], external: []});
+				
 				var product;
 				try {
-					product = defintion();
-				} catch (e){
-					fail('Failed to execute definition of "' + name + '".', e);
+					product = definition();
+				// зачем здесь (и в forceResolveAndEvalDefinition) такая странная конструкция?
+				// это способ хоть как-то выводить синтаксические ошибки.
+				// если мы перехватываем эксепшн, а затем кидаем его еще раз, теряется информация о его изначальной локации
+				// извлечь эту информацию из пойманного эксепшна не удалось
+				// поэтому мы просто позволяем эксепшну долететь до самого верха и распечатать строчку, в которой показывается, где же ошибка
+				// а перед этим печатаем имя пакета, т.о. сообщая полную информацию о том, где случился эксепшн
+				} finally {
+					if(!product){
+						console.error('Exception occured during running definition of package ' + name);
+					}
 				}
 				
 				(typeof(product) === 'undefined') && 
@@ -350,10 +386,14 @@ var Addict = (() => {
 				code = this.addict.fixCode(code);
 				
 				this.addict.definitionStorage.withExpectation(name, () => {
+					var executedSuccessfully = false;
 					try {
-						eval(code);
-					} catch(e){
-						fail('Failed to run code of package "' + name + '": syntax error.', e);
+						new Function(code).call(null);
+						executedSuccessfully = true;
+					} finally {
+						if(!executedSuccessfully){
+							console.error('Exception occured during running code of package ' + name);
+						}
 					}
 				});
 			},
@@ -371,11 +411,11 @@ var Addict = (() => {
 				if(this.addict.productStorage.has(name)) return;
 				
 				if(this.addict.definitionStorage.has(name)){
-					return forceExecuteDefinition(name, this.addict.definitionStorage.get(name));
+					return this.forceExecuteDefinition(name, this.addict.definitionStorage.get(name));
 				}
 				
 				this.forceResolveAndEvalDefinition(name);
-				forceExecuteDefinition(name, this.addict.definitionStorage.get(name));
+				this.forceExecuteDefinition(name, this.addict.definitionStorage.get(name));
 			},
 			
 			getProduct: function(name){
@@ -438,6 +478,13 @@ var Addict = (() => {
 			return code;
 		},
 		
+		resolvers: function(vararg){
+			for(var i = 0; i < arguments.length; i++){
+				this.defineResolver.apply(this, arguments[i]);
+			}
+			
+			return this;
+		},
 		defineResolver: function(resolver){
 			if(typeof(resolver) === 'string'){
 				return this.defineResolver(Addict.Resolver.for.apply(null, arguments));
@@ -445,7 +492,7 @@ var Addict = (() => {
 				// резолверы для других сред нам никогда не пригодятся
 				// даже в случае подмены среды, резолвер останется прежним
 				// (т.к. нет никакого смысла искать пакеты в DOM-дереве, если мы запущены в ноде)
-				if((this.realEnvironment.type !== resolver.envType) return this;
+				if(this.realEnvironment.type !== resolver.envType) return this;
 				
 				this.resolver && fail('Could not define resolver twice for environment "' + resolver.envType + '".');
 				this.resolver = resolver;
@@ -480,11 +527,12 @@ var Addict = (() => {
 			return this.executor.getExternalProduct(packageName)
 		},
 		
+		main: function(){ return this.defineMain.apply(this, arguments) },
 		defineMain: function(body){
 			(this.resolver === null) 
 				&& fail('No resolver is defined for current environment (' + this.realEnvironment.type + '). Could not proceed with startup.');
 				
-			this.addict.isStartedUp 
+			this.isStartedUp 
 				&& fail('Main method must be defined synchronously at startup.');
 			
 			if(this.startTimeoutHandle){
@@ -543,9 +591,21 @@ var Addict = (() => {
 				this.productStorage = old;
 			}
 			return this;
-		}
+		},
 		
-	}
+		cleanup: function(action){
+			this.definitionStorage = null;
+			this.productStorage = null;
+			this.executor = null;
+			this.resolver = null;
+			this.codeFixers = null;
+			this.currentEnvironment = this.realEnvironment = null;
+		},
+		
+		pkg: function(name, defOrEmpty){
+			return defOrEmpty? this.definePackage(name, defOrEmpty): this.requestPackage(name);
+		}
+	};
 	
 	(() => {
 		var defaultInstance = new Addict();
@@ -554,8 +614,28 @@ var Addict = (() => {
 			.forEach(key => {
 				Addict[key] = function(){ return defaultInstance[key].apply(defaultInstance, arguments) }
 			})
+			
+		defaultInstance.definitionStorage.forceStore('meta.addict', () => Addict);
 	})();
 	
 	return Addict;
 	
 })();
+
+(() => {
+	var pkg = (name, defOrEmpty) => Addict.pkg(name, defOrEmpty);;
+	pkg.external = name => Addict.requestExternalPackage(name);
+	
+	switch(Addict.getEnvironment().type){
+		case 'node': 
+			module.exports = Addict;
+			global.pkg = pkg;
+			break;
+		case 'browser':
+			// это избыточно, по идее, но не повредит
+			window.Addict = Addict;
+			window.pkg = pkg;
+			break;
+	}
+})();
+
