@@ -107,12 +107,10 @@ var Addict = (() => {
 	// Environment содержит информацию о среде, в которой в данный момент исполняется код
 	Addict.Environment = (() => {
 		
-		var Environment = function(type, global){ this.type = type; this.globals = global }
+		var Environment = function(type, global){ this.type = type; this.globals = global || globals[type](); }
 		
 		var detectors = {
-			//'browser': new Function("try { return this === window } catch(e) { return false }"),
 			'browser': new Function("return this && typeof(window) !== 'undefined' && this === window"),
-			//'node': new Function("try { return this === global } catch(e){ return false }")
 			'node': new Function("return this && typeof(global) !== 'undefined' && this === global"),
 		};
 		
