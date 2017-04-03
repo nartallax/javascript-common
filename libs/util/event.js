@@ -1,0 +1,58 @@
+pkg('util.event', () => {
+
+	var id = -0xffffffff;
+	var getId = () => id++;
+	
+	var Event = function(){
+		// this breaks instanceof
+		// allowing fancy thing like smth.onEvent(e => { ... })
+		if(this instanceof Event) return Event();
+		
+		var result = function(newListener){
+			result.listen(newListener);
+			return this;
+		}
+		
+		for(var i in Event.prototype) result[i] = Event.prototype[i];
+		
+		result.start();
+		
+		return result;
+	};
+	
+	Event.prototype = {
+		listen: function(l){
+			//console.trace('assigned ' + l.toString().substring(0, 100));
+			if(!this.active) throw 'Could not listen to inactive event.'
+			var id = l.eventListenerId || (l.eventListenerId = getId())
+			this.listeners[id] || (this.listeners[id] = l)
+			return this;
+		},
+		unlisten: function(l){
+			//console.trace('disassigned ' + l.toString().substring(0, 100));
+			if(!this.active) return; // its okay to unsubscribe from dead event
+			if(l.eventListenerId) delete this.listeners[l.eventListenerId];
+			return this;
+		},
+		fire: function(d){
+			//console.trace('firing');
+			if(!this.active) throw 'Could not fire inactive event.';
+			for(var i in this.listeners) this.listeners[i](d);
+		},
+		stop: function(){
+			//console.trace('stopping');
+			if(!this.active) throw 'Could not stop inactive event.'
+			delete this.listeners;
+			this.active = false;
+		},
+		start: function(){
+			//console.trace('starting');
+			if(this.active) throw 'Could not start event that is already active.'
+			this.listeners = {};
+			this.active = true;
+		}
+	}
+	
+	return Event;
+
+});
