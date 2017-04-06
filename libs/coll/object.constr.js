@@ -13,6 +13,13 @@ pkg('coll.object.constr', () => {
 				var result = {};
 				Object.keys(obj).each(k => result[k] = cb(k, obj[k]))
 				return result;
+			},
+			mix: function(base, varargMixins){
+				(typeof(base) !== 'object' || base === null) && fail('Expected value to mix into to be non-null object; got ' + base + ' instead.');
+				for(var i = 1; i < arguments.length; i++){
+					var mixin = arguments[i];
+					Object.keys(mixin).forEach(k => base[k] = mixin[k]);
+				}
 			}
 		}
 		

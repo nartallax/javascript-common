@@ -4,13 +4,6 @@ pkg('coll.stream.array.proto', () => {
 	var Stream = pkg('coll.stream');
 	
 	var mods = {
-		stream: function(){
-			var i = 0;
-			return new Stream(() => i < this.length, () => this[i++]);
-		},
-		array: function(arr){ return arr? this: arr.concat(this) },
-		async: function(){ return this.stream().async() },
-		
 		map: function(proc, index){
 			index = index || 0;
 			var result = [], i = -1;
@@ -64,6 +57,7 @@ pkg('coll.stream.array.proto', () => {
 		product: function(){ return this.reduce((a, b) => a * b, 1) },
 		max: function(){ return this.reduce((a, b) => a > b? a: b) },
 		min: function(){ return this.reduce((a, b) => a < b? a: b) },
+		size: function(){ return this.length },
 		
 		append: function(other){ return this.concat(other.array()) },
 		take: function(count){ return arguments.length < 1? this[0]: this.slice(0, count < 0? 0: count); },
