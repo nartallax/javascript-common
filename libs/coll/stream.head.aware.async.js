@@ -7,7 +7,7 @@ pkg('coll.stream.head.aware.async', () => {
 	// head() - синхронный, только после hasNext()
 	var HeadAwareAsyncStream = function(hasNext, next){
 		this._hn = hasNext;
-		this._n = next();
+		this._n = next;
 		this._hasHead = false;
 		this._head = null
 		this._loadcb = new Queue();
@@ -16,7 +16,7 @@ pkg('coll.stream.head.aware.async', () => {
 	
 	HeadAwareAsyncStream.prototype = AsyncStream.extend({
 		forceStartLoad: function(){
-			this._loading || ((this._loading = true), this.hasNext(hn => {
+			this._loading || ((this._loading = true), this._hn(hn => {
 				this._loading = false;
 				hn && ((this._head = this._n()),(this._hasHead = true));
 				
@@ -31,7 +31,7 @@ pkg('coll.stream.head.aware.async', () => {
 		
 		loadHead: function(cb){
 			if(this._hasHead){
-				setImmediate(() => this._hasHead? cb(true): this.loadNext(cb));
+				setImmediate(() => this._hasHead? cb(true): this.loadHead(cb));
 				return;
 			}
 			
@@ -53,8 +53,32 @@ pkg('coll.stream.head.aware.async', () => {
 			this.checkValueHandler(cond, ['value', 'callback'], ['index']);
 			index = index || 0;
 			return new AsyncStream(
-				cb => this.loadNext(hn => cb(hn && cond(this._head))),
+				cb => this.loadHead(hn => !hn? cb(false): cond(this._head, cb, index++)),
 				() => this.next()
+			);
+		},
+		
+		groupByComparison: function(compare, index){
+			this.checkValueHandler(compare, ['value_a', 'value_b', 'callback'], ['index'])
+			
+			var prev = null, hasPrev = false;
+			
+			return new AsyncStream(
+				cb => {
+					this.loadHead(hn => cb(hn))
+				},
+				() => this.takeWhile((x, cb, i) => {
+					if(!hasPrev) {
+						hasPrev = true;
+						prev = x;
+						setImmediate(() => cb(true))
+					} else {
+						index = i;
+						compare(prev, x, isGood => {
+							isGood? ((prev = x), cb(true)): ((hasPrev = false), (prev = null), cb(false))
+						}, index - 1);
+					}
+				}, index)
 			);
 		}
 	});

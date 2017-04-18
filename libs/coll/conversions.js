@@ -30,6 +30,7 @@ pkg('coll.conversions', () => {
 		Object.mix(AsyncStream.prototype, {
 			stream: function(cb){ this.array(arr => cb(arr.stream())) },
 			array: function(cb, arr){
+				this.checkValueHandler(cb, ['value'])
 				arr = arr || [];
 				this.each((x, cb) => cb(arr.push(x)), () => cb(arr));
 			},
@@ -47,19 +48,28 @@ pkg('coll.conversions', () => {
 		
 		Object.mix(RingBuffer.prototype, {
 			stream: function(){
-				var i = this.indices.clone(),
-					start = i.head();
+				var i = this.index,
+					start = i,
+					started = false;
 					
-				while(!(i.head() in this.data) && (!started || i.head() !== start)) {
+				while(!(i in this.data) && (!started || i !== start)) {
 					started = true;
-					i.next();
+					i = (i + 1) % this.size;
 				}
 				
-				return new Stream(
-					() => (i.head() !== start) || !started,
-					() => this.data[i.next()]
+				return new HeadAwareStream(
+					() => (i !== start) || !started,
+					() => {
+						var res = this.data[i];
+						started = true;
+						i = (i + 1) % this.size;
+						return res
+					}
 				);
-			}
+			},
+			array: function(){ return this.stream().array() },
+			async: function(){ return this.stream().async() },
+			headAware: function(){ return this.stream() }
 		})
 		
 	}

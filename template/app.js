@@ -3,12 +3,12 @@ require('../../javascript-common/libs/meta/addict.js')
 	.resolvers(['node', {'../../javascript-common/libs': '', './app': 'appname'}])
 	.main(() => {
 	
-		pkg('global')();
+		pkg('global');
 		
-		var getCallStack = pkg('meta.stack');
-				
-		var stream = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].async();
-		stream.groupBy((a, cb) => cb(~~(a / 5))).map((x, cb) => x.array(cb)).array(x => log(x));
+		test.passAll(() => {
+			var stream = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].async();
+			stream.groupBy((a, cb) => cb(~~(a / 5))).map((x, cb) => x.array(cb)).array(x => log(x));
+		});
 		
 		
 		/*
@@ -18,5 +18,5 @@ require('../../javascript-common/libs/meta/addict.js')
 		
 		log(stream.tail(10).array());
 		*/
-		
 	});
+		

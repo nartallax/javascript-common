@@ -1,6 +1,7 @@
 pkg('meta.stack', () => {
 
-	var reg = /^\s*(?:at\s)?\s*(\S+)\s+.*?(?:\[as\s(\S+)\])?.*?\((.*?):(\d+):(\d+)\)\s*$/;
+	var reg = /^\s*(?:at\s)?\s*(\S+)\s+.*?(?:\[as\s(\S+)\])?.*?\((.*?):(\d+):(\d+)\)\s*$/,
+		pathReg = /[\\\/]([^\\\/]+\.[Jj][Ss])$/;
 
 	var StackTraceElement = function(fnName, fnPseudo, module, line, col){
 		this.functionName = fnName || null,
@@ -21,11 +22,20 @@ pkg('meta.stack', () => {
 			return 'at ' + (this.functionName || '???') +
 				(this.functionPseudonym? ' [as ' + this.functionPseudonym + ']': '') +
 				(' (' + (this.module || '???') + ':' + (this.line || '???') + ':' + (this.column || '???') + ')')
+		},
+		
+		getSimpleModuleName: function(){
+			if(!this.module) return '???';
+			return this.module.match(pathReg)? this.module.match(pathReg)[1]: this.module;
+		},
+		
+		toShortString: function(){
+			return this.getSimpleModuleName() + ':' + (this.line || '???') + ':' + (this.column || '???');
 		}
 	}
 	
 	// функция, позволяющая получать структурированный callstack
-	return smth => {
+	var getStackTrace = smth => {
 		
 		smth || (smth = new Error());
 		smth && smth.stack && (smth = smth.stack + '');
@@ -33,5 +43,7 @@ pkg('meta.stack', () => {
 		
 		return smth.map(StackTraceElement.fromLine).filter(l => l)
 	}
+	
+	return getStackTrace;
 
 });

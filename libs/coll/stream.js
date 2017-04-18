@@ -16,6 +16,8 @@ pkg('coll.stream', () => {
 	}
 
 	Stream.prototype = {
+		toString: function(){ return "Stream" },
+		
 		map: function(proc, index){
 			index = index || 0;
 			return new Stream(() => this.hasNext(), () => proc(this.next(), index++)) 
@@ -23,13 +25,14 @@ pkg('coll.stream', () => {
 		flatMap: function(proc, index){
 			index = index || 0;
 			var buffer = [].stream();
-			return new Stream(
+			var result = new Stream(
 				() => buffer.hasNext() || this.hasNext(),
 				() => buffer.hasNext()? buffer.next(): ((buffer = proc(this.next(), index++).stream()), result.next())
 			);
+			return result;
 		},
 		flatten: function(){ return this.flatMap(x => x) },
-		filter: function(proc, index){ return this.flatMap(x => proc(x)? [x]: []) },
+		filter: function(proc, index){ return this.flatMap((x, i) => proc(x, i)? [x]: []) },
 		
 		each: function(proc, index){ 
 			index = index || 0; 
@@ -74,10 +77,18 @@ pkg('coll.stream', () => {
 			return this.headAware().takeWhile(cond, index);
 		},
 		drop: function(count){
+			var started = false;
 			arguments.length < 1 && (count = 1);
 			return new Stream(
-				() => count > 0 && this.hasNext(),
-				() => (count--, this.next())
+				() => {
+					if(!started){
+						started = true;
+						while(count-- > 0 && this.hasNext()) this.next();
+					}
+					
+					return this.hasNext();
+				},
+				() => this.next()
 			);
 		},
 		dropWhile: function(cond, index){ return this.headAware().dropWhile(cond, index) },
@@ -94,23 +105,29 @@ pkg('coll.stream', () => {
 				this.each(x => res = x);
 				return res;
 			} else { // TODO: optimize by circle buffer?
-				var rb = new RingBuffer(len);
-				this.each(x => rb.push(x));
-				return rb.stream();
+				if(len < 1){
+					return new Stream(() => false, () => fail('Calling next() on stream returned false as hasNext() value is not allowed.'))
+				} else {
+					var rb = new RingBuffer(len);
+					this.each(x => rb.push(x));
+					return rb.stream();
+				}
 			}
 		},
 		
 		find: function(proc, index){ return this.filter(proc, index).take(); },
 		findIndex: function(proc, index){
-			this.filter((x, i) => ((index = i), proc(x, i)), index);
+			this.filter((x, i) => ((index = i), proc(x, i)), index).take();
 			return index;
 		},
 		
+		// результат группировки - также стримы
+		// предполагается, что каждый стрим будет потреблен до конца до того, как будет запрошен следующий
 		groupBy: function(arg, index){
 			if(typeof(arg) === 'number') return this.groupByCount(arg)
 			if(typeof(arg) === 'function' && arg.length === 1) return this.groupByAttribute(arg, index);
 			if(typeof(arg) === 'function' && (arg.length === 2 || arg.length === 3)) return this.groupByComparison(arg, index);
-			fail('Could not determine what overload to call of groupBy method.');
+			fail('Could not determine what overload of groupBy method to call.');
 		},
 		groupByCount: function(size){
 			var i;
@@ -155,6 +172,65 @@ pkg('coll.stream', () => {
 			);
 		}
 	}
+	
+	//["toString","map","flatMap","flatten","filter","each","reduce","sum","product","max","min","size","append","take","takeWhile","drop","dropWhile","exists","tail","find","findIndex","groupBy","groupByCount","groupByAttribute","groupByComparison","stream","array","async","headAware"]
+	test("map", () => expect(["first", "second", "third"].stream().map(x => x.substr(0, 2)).array().join(',') === 'fi,se,th'));
+	test("flatMap", () => {
+		expect(["first", "second", "third"].stream().flatMap(x => [x.substr(0, 2), x.substr(3, 2)]).array().join(',') === 'fi,st,se,on,th,rd')
+	});
+	test('flatten', () => expect([["fi", "st"], ["se","nd"], ["th", "rd"]].stream().flatten().array().join(',') === 'fi,st,se,nd,th,rd'))
+	test('filter', () => expect(["first", "second", "third"].stream().filter(x => x.length % 2).array().join(',') === 'first,third'));
+	test('each', () => {
+		var res = '';
+		['first', 'second', 'third'].stream().each(x => res = (res? res + ',': res) + x);
+		expect(res === 'first,second,third');
+	});
+	test('reduce', () => expect(['first', 'second', 'third'].stream().reduce((a, b) => a + ',' + b) === 'first,second,third'));
+	test('size', () => expect(['first', 'second', 'third'].stream().size() === 3));
+	test('append', () => expect([1, 3, 5].stream().append([2, 4, 6].stream()).array().join(',') === '1,3,5,2,4,6'));
+	test('take', () => {
+		expect([1, 3, 5, 2, 4, 6].stream().take(10).array().join(',') === '1,3,5,2,4,6')
+		expect([1, 3, 5, 2, 4, 6].stream().take(4).array().join(',') === '1,3,5,2')
+		expect([1, 3, 5, 2, 4, 6].stream().take(1).array().join(',') === '1')
+		expect([1, 3, 5, 2, 4, 6].stream().take(0).array().join(',') === '')
+		expect([1, 3, 5, 2, 4, 6].stream().take(-5).array().join(',') === '')
+	});
+	test('takeWhile', () => {
+		expect([1, 3, 5, 2, 4, 6].stream().takeWhile(x => x < 6).array().join(',') === '1,3,5,2,4')
+		expect([1, 3, 5, 2, 4, 6].stream().takeWhile(x => x < 5).array().join(',') === '1,3')
+		expect([1, 3, 5, 2, 4, 6].stream().takeWhile(x => x !== 2).array().join(',') === '1,3,5')
+	});
+	test('drop', () => {
+		expect([1, 3, 5, 2, 4, 6].stream().drop(10).array().join(',') === '')
+		expect([1, 3, 5, 2, 4, 6].stream().drop(4).array().join(',') === '4,6')
+		expect([1, 3, 5, 2, 4, 6].stream().drop(1).array().join(',') === '3,5,2,4,6')
+		expect([1, 3, 5, 2, 4, 6].stream().drop(0).array().join(',') === '1,3,5,2,4,6')
+		expect([1, 3, 5, 2, 4, 6].stream().drop(-5).array().join(',') === '1,3,5,2,4,6')
+	});
+	test('dropWhile', () => {
+		expect([1, 3, 5, 2, 4, 6].stream().dropWhile(x => x < 6).array().join(',') === '6')
+		expect([1, 3, 5, 2, 4, 6].stream().dropWhile(x => x < 5).array().join(',') === '5,2,4,6')
+		expect([1, 3, 5, 2, 4, 6].stream().dropWhile(x => x !== 2).array().join(',') === '2,4,6')
+	});
+	test('exists', () => {
+		expect([1, 3, 5, 2, 4, 6].stream().exists(x => x > 4 && (x % 2) === 0))
+		expect(![1, 3, 5, 2, 4, 6].stream().exists(x => x < 2 && (x % 2) === 0))
+	});
+	test('tail', () => {
+		expect([1, 3, 5, 2, 4, 6].stream().tail() === 6)
+		expect([].stream().tail() === undefined)
+		
+		expect([1, 3, 5, 2, 4, 6].stream().tail(10).array().join(',') === "1,3,5,2,4,6")
+		expect([1, 3, 5, 2, 4, 6].stream().tail(3).array().join(',') === "2,4,6")
+		expect([1, 3, 5, 2, 4, 6].stream().tail(5).array().join(',') === "3,5,2,4,6")
+		expect([1, 3, 5, 2, 4, 6].stream().tail(0).array().join(',') === "")
+		expect([1, 3, 5, 2, 4, 6].stream().tail(-5).array().join(',') === "")
+	});
+	test('find', () => expect([1, 3, 5, 2, 4, 6].stream().find(x => x > 3 && x % 2 === 0) === 4));
+	test('findIndex', () => expect([1, 3, 5, 2, 4, 6].stream().findIndex(x => x > 1 && x % 2 === 0) === 3));
+	test('groupBy', () => {
+	})
+	
 	
 	Stream.isStream = n => (n instanceof Stream);
 	

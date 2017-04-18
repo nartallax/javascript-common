@@ -362,7 +362,7 @@ var Addict = (() => {
 				
 				this.executionStack.push({name: name, internal:[], external: []});
 				
-				var product;
+				var product = undefined;
 				try {
 					product = definition();
 				// зачем здесь (и в forceResolveAndEvalDefinition) такая странная конструкция?
@@ -372,7 +372,7 @@ var Addict = (() => {
 				// поэтому мы просто позволяем эксепшну долететь до самого верха и распечатать строчку, в которой показывается, где же ошибка
 				// а перед этим печатаем имя пакета, т.о. сообщая полную информацию о том, где случился эксепшн
 				} finally {
-					if(!product && !this.topMostErrorIsAlreadyReported){
+					if(product === undefined && !this.topMostErrorIsAlreadyReported){
 						this.topMostErrorIsAlreadyReported = true;
 						console.error('Exception occured during running definition of package ' + name);
 					}

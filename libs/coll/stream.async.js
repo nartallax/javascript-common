@@ -2,13 +2,15 @@
 pkg('coll.stream.async', () => {
 	
 	var SeqBufRec = pkg('coll.sequental.buffer.rectifier'),
-		ProdCon = pkg('util.producer.consumer');
+		ProdCon = pkg('util.producer.consumer'),
+		RingBuffer = pkg('coll.ring.buffer'),
+		Stream = pkg('coll.stream');
 	
 	// асинхронный Stream. асинхронный в нем только hasNext(), next() - синхронный
 	// в отличие от его синхронного предшественника, имеет ряд нюансов, связанных с асинхронным потреблением данных
 	// например, правило, которое для стрима звучало как "не вызывай next(), не проверив сначала hasNext()"
 	// для асинхронного звучит как "вызывай next() только синхронно после того как вызов hasNext() вернется"
-	// так, при попытке нескольких потребителей одновременно использовать этот стрим, каждое значение будет уходить ровно одному
+	// и у одного асинхронного стрима может быть ровно один потребитель
 	var AsyncStream = function(hasNext, next){
 		if(!(this instanceof AsyncStream)) return new AsyncStream(hasNext, next);
 		
@@ -23,11 +25,14 @@ pkg('coll.stream.async', () => {
 	
 	AsyncStream.prototype = {
 		defaultThreadCount: 1,
-		defaultBufferSizeMultiplier: 3,
+		defaultBufferSizeMultiplier: 1,
 		
-		checkValueHandler: (onValue, expectedArg, optionalArgs) => {
+		toString: function(){ return "AsyncStream" },
+		
+		checkValueHandler: (onValue, expectedArgs, optionalArgs) => {
 			optionalArgs || (optionalArgs = []);
-			if(onValue.length < expectedArg.length){
+			typeof(onValue) === 'function' || fail('Expected callback to be function, got ' + typeof(onValue) + ' instead.')
+			if(onValue.length < expectedArgs.length){
 				fail('Callback takes not enough arguments! Expected no lesser than ' + expectedArgs.length + 
 					' (' + expectedArgs.concat(optionalArgs).join(', ') + ')');
 			}
@@ -35,8 +40,8 @@ pkg('coll.stream.async', () => {
 		
 		map: function(onValue, threadCount, bufferSize, index){
 			(arguments.length < 2 || typeof(threadCount) !== 'number' || threadCount <= 0) && (threadCount = this.defaultThreadCount);
-			(arguments.length < 3 || typeof(bufferSize) !== 'number' || bufferSize <= threadCount + 1) && 
-				(bufferSize = Math.max(threadCount * this.defaultBufferSizeMultiplier, threadCount + 1));
+			(arguments.length < 3 || typeof(bufferSize) !== 'number' || bufferSize < 1) && 
+				(bufferSize = Math.max(threadCount * this.defaultBufferSizeMultiplier, 1));
 			this.checkValueHandler(onValue, ['value', 'callback'], ['index']);
 			
 			index = index || 0;
@@ -79,6 +84,8 @@ pkg('coll.stream.async', () => {
 			this.checkValueHandler(onValue, ['value', 'callback'], ['index']);
 			(arguments.length < 3 || typeof(threadCount) !== 'number' || threadCount <= 0) && (threadCount = Math.max(this.defaultThreadCount, 1));
 			
+			index = index || 0;
+			
 			var currentQuota = threadCount;
 			
 			var isWaitingToRunNext = false;
@@ -104,14 +111,17 @@ pkg('coll.stream.async', () => {
 		
 		flatten: function(){ 
 			var bufferValue = null;
-			return new AsyncStream(
-				cb => bufferValue? bufferValue.hasNext(hn => hn? cb(true): ((bufferValue = null), this.hasNext(cb))): this.hasNext(cb),
-				() => (bufferValue || (bufferValue = this.next().async())).next()
-			);
+			
+			var hasNext = cb => bufferValue? 
+					bufferValue.hasNext(hn => hn? cb(true): ((bufferValue = null), hasNext(cb))): 
+					this.hasNext(hn => hn? ((bufferValue = this.next().async()), hasNext(cb)): cb(false));
+			
+			return new AsyncStream(hasNext, () => bufferValue.next());
 		},
 		
 		flatMap: function(cb, tc, bs, index){ return this.map(cb, tc, bs, index).flatten() },
-		filter: function(cond, tc, bs, index){ 
+		filter: function(cond, tc, bs, index){
+			this.checkValueHandler(cond, ['value', 'callback'], ['index']);
 			return this.flatMap((x, cb, index) => cond(x, isGood => cb(isGood? [x]: []), index), tc, bs, index) 
 		},
 		reduce: function(reducer, after, initialValue, index){
@@ -138,7 +148,7 @@ pkg('coll.stream.async', () => {
 		append: function(other){
 			other = other.async();
 			
-			var hasNext = cb => this.hasNext(hn => nh? cb(true): ((next = () => other.next()), (this.hasNext = (cb => other.hasNext(cb)))(cb))),
+			var hasNext = cb => this.hasNext(hn => hn? cb(true): ((next = () => other.next()), (this.hasNext = (cb => other.hasNext(cb)))(cb))),
 				next = () => this.next();
 			
 			return new AsyncStream(cb => hasNext(cb), () => next());
@@ -146,8 +156,9 @@ pkg('coll.stream.async', () => {
 		
 		take: function(arg){
 			if(typeof(arg) === 'function'){
-				this.hasNext(hn => cb(hn? this.next(): undefined));
-			} else if(typeof(arg) === 'number') {
+				this.checkValueHandler(arg, ['value'])
+				this.hasNext(hn => arg(hn? this.next(): undefined));
+			} else if(typeof(arg) === 'number'){
 				var i = 0, count = arg;
 				
 				return new AsyncStream(
@@ -160,10 +171,12 @@ pkg('coll.stream.async', () => {
 		takeWhile: function(cond, index){ return this.headAware().takeWhile(cond, index) },
 		
 		drop: function(count){
+			started = false;
 			arguments.length < 1 && (count = 1);
+			
 			return new AsyncStream(
-				cb => count < 0? setImmediate(() => cb(false)): this.hasNext(hn => cb(hn && count > 0)),
-				() => (count--, this.next())
+				cb => started? this.hasNext(cb): this.take(count).each(x => x, () => ((started = true), this.hasNext(cb))),
+				() => this.next()
 			);
 		},
 		
@@ -182,8 +195,36 @@ pkg('coll.stream.async', () => {
 				cb = len;
 				var v = undefined;
 				this.each((x, cb) => cb(v = x), () => cb(v));
-			} else {
-			}
+			} else if(arguments.length === 2) {
+				var rb = new RingBuffer(len);
+				this.each((x, cb) => cb(rb.push(x)), () => cb(rb.stream()));
+			} else fail('Expected tail() to take callback or length + callback arguments');
+		},
+		
+		find: function(cond, cb, tc, bs, index){
+			this.checkValueHandler(cb, ['value'], ['index'])
+			this.filter((x, cb, i) => ((index = i), cond(x, cb, i)), tc, bs, index).take(x => cb(x, index));
+		},
+		findIndex: function(cond, cb, tc, bs, index){ return this.find(cond, (x, i) => cb(i), tc, bs, index) },
+		
+		groupBy: function(arg, index){
+			if(typeof(arg) === 'number') return this.groupByCount(arg)
+			if(typeof(arg) === 'function' && arg.length === 2) return this.groupByAttribute(arg, index);
+			if(typeof(arg) === 'function' && (arg.length === 3 || arg.length === 4)) return this.groupByComparison(arg, index);
+			fail('Could not determine what overload of groupBy method to call.');
+		},
+	
+		groupByCount: function(groupSize){
+			return new AsyncStream(
+				cb => this.hasNext(cb),
+				() => this.take(groupSize)
+			);
+		},
+		groupByAttribute: function(attrExtractor, index){ return this.groupByComparison((a, b, cb, index) => {
+			attrExtractor(a, a => attrExtractor(b, b => cb(a === b), index + 1), index);
+		})},
+		groupByComparison: function(comparer, index){
+			return this.headAware().groupByComparison(comparer, index);
 		}
 	}
 	
