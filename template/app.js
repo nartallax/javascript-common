@@ -2,7 +2,6 @@
 require('../../javascript-common/libs/meta/addict.js')
 	.resolvers(['node', {'../../javascript-common/libs': '', './app': 'appname'}])
 	.main(() => {
-	
 		pkg('global')();
 		process.chdir(__dirname);
 		

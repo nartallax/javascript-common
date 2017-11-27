@@ -1,18 +1,27 @@
 pkg('global', () => {
 	
 	var Addict = pkg('meta.addict'),
-		RejectionHandler = pkg('util.rejection.handler');
+		RejectionHandler = pkg('util.rejection.handler'),
+		Test = pkg('meta.test');
 	
 	var directInclusions = {
+		'test': Test,
+		'expect': Test.expect,
+		'expectException': Test.expectException,
 		'fail': pkg('util.fail'),
 		'log': pkg('util.log'),
 		"sleep": pkg("util.sleep")
 	};
 	
+	var glob = Addict.getEnvironment().getGlobal();
+	Object.keys(directInclusions).forEach(k => glob[k] = directInclusions[k]);
+	
 	var otherGlobalModifications = [
 		pkg('util.polyfill'),
+		pkg('util.timer.fix'),
 		pkg('coll.stream.array.proto'),
 		pkg('coll.object.constr'),
+		pkg('coll.conversions'),
 		pkg('coll.array.proto'),
 	];
 	
@@ -31,4 +40,5 @@ pkg('global', () => {
 		otherGlobalModifications.forEach(x => x());
 	}
 	
+	return null;
 });

@@ -105,7 +105,10 @@ var Addict = (() => {
 		setTimeout(() => this.startTimeoutHandle || this.isStartedUp || fail('Expected application entry point to be defined synchronously at startup.'), 0);
 		
 		this.registerCodeFixer(new Addict.CodeFixer('auto_use_strict', code => '"use strict";' + code));
-		this.registerCodeFixer(new Addict.CodeFixer('name_the_source', (code, modName) => code + '\n//# sourceURL=' + modName));
+		this.registerCodeFixer(new Addict.CodeFixer('add_source_url', (code, pkgName) => {
+			var ps = "\n/*@cc_off\n@*/\n/*\n//@ sourceURL=" + pkgName + "\n*/\n//# sourceURL=" + pkgName
+			return code + ps;
+		}));
 	};
 	
 	// Environment содержит информацию о среде, в которой в данный момент исполняется код
@@ -350,11 +353,12 @@ var Addict = (() => {
 			this.addict = addict;
 			this.executingMain = false;
 			this.executionStack = [];
+			this.topMostErrorIsAlreadyReported = true;
 		}
 		
 		Executor.prototype = {
 			checkForCircularDependenciesFrom: function(name){
-				for(var i = this.executionStack.lenghth - 1; i >= 0; i++){
+				for(var i = this.executionStack.length - 1; i >= 0; i--){
 					if(this.executionStack[i].name === name){
 						var dependencyCircle = [];
 						for(var j = i; j < this.executionStack.length; j++){
@@ -370,10 +374,11 @@ var Addict = (() => {
 			
 			forceExecuteDefinition: function(name, definition){
 				this.checkForCircularDependenciesFrom(name);
+				this.topMostErrorIsAlreadyReported = false;
 				
 				this.executionStack.push({name: name, internal:[], external: []});
 				
-				var product;
+				var product = undefined;
 				try {
 					product = definition();
 				// зачем здесь (и в forceResolveAndEvalDefinition) такая странная конструкция?
@@ -383,7 +388,8 @@ var Addict = (() => {
 				// поэтому мы просто позволяем эксепшну долететь до самого верха и распечатать строчку, в которой показывается, где же ошибка
 				// а перед этим печатаем имя пакета, т.о. сообщая полную информацию о том, где случился эксепшн
 				} finally {
-					if(!product){
+					if(product === undefined && !this.topMostErrorIsAlreadyReported){
+						this.topMostErrorIsAlreadyReported = true;
 						console.error('Exception occured during running definition of package ' + name);
 					}
 				}
@@ -396,6 +402,7 @@ var Addict = (() => {
 			},
 			
 			forceResolveAndEvalDefinition: function(name){
+				this.topMostErrorIsAlreadyReported = false;
 				var code = this.addict.resolver.codeByName(name);
 				
 				code = this.addict.fixCode(code, name);
@@ -403,11 +410,15 @@ var Addict = (() => {
 				this.addict.definitionStorage.withExpectation(name, () => {
 					var executedSuccessfully = false;
 					try {
-						new Function(code).call(null);
+						//new Function(code).call(null)
+						// используем eval(), а не new Function(), т.к. new Function() добавляет +1 к номеру строки
+						// это сбивает с толку
+						eval.call(null, code); 
 						executedSuccessfully = true;
 					} finally {
-						if(!executedSuccessfully){
-							console.error('Exception occured during running code of package ' + name);
+						if(!executedSuccessfully && !this.topMostErrorIsAlreadyReported){
+							this.topMostErrorIsAlreadyReported = true;
+							console.error('Exception occured during evaluation of code of package ' + name);
 						}
 					}
 				});
@@ -426,7 +437,8 @@ var Addict = (() => {
 				if(this.addict.productStorage.has(name)) return;
 				
 				if(this.addict.definitionStorage.has(name)){
-					return this.forceExecuteDefinition(name, this.addict.definitionStorage.get(name));
+					this.forceExecuteDefinition(name, this.addict.definitionStorage.get(name));
+					return;
 				}
 				
 				this.forceResolveAndEvalDefinition(name);
@@ -670,4 +682,9 @@ var Addict = (() => {
 	}
 })();
 
+/*@cc_off
+ @*/
+/*
+//@ sourceURL=meta.addict
+*/
 //# sourceURL=meta.addict

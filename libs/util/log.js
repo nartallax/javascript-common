@@ -1,7 +1,7 @@
 pkg('util.log', () => {
 	var nowString = pkg('util.time').nowString,
 		Addict = pkg('meta.addict');
-
+		
 	var str = smth => {
 		switch(typeof(smth)) {
 			case "function":return "[some function]";
@@ -27,7 +27,6 @@ pkg('util.log', () => {
 	var doEmitLog = (args, logger) => {
 		var res = '';
 		for(var i = 0; i < args.length; i++) res += ' ' + str(args[i])
-		
 		logger(nowString() + ' |' + res);
 	}
 	
