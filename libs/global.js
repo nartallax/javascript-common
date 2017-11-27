@@ -16,6 +16,8 @@ pkg('global', () => {
 	var glob = Addict.getEnvironment().getGlobal();
 	Object.keys(directInclusions).forEach(k => glob[k] = directInclusions[k]);
 	
+	pkg('util.class').modifyPrototype(); 
+	
 	var otherGlobalModifications = [
 		pkg('util.polyfill'),
 		pkg('util.timer.fix'),
@@ -39,6 +41,4 @@ pkg('global', () => {
 		Object.keys(directInclusions).forEach(k => glob[k] = directInclusions[k]);
 		otherGlobalModifications.forEach(x => x());
 	}
-	
-	return null;
 });

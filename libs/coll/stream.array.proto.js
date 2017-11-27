@@ -134,9 +134,6 @@ pkg('coll.stream.array.proto', () => {
 		
 		requiredMods
 			.map(name => {
-				(name in mods && typeof(mods[name]) === 'function' && mods[name].length === Stream.prototype[name].length) 
-					|| fail('Failed to modify prototype of Array according to prototype of Stream: bad mod method "' + name + '".');
-					
 				Array.prototype[name] = mods[name];
 			})
 		
