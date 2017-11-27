@@ -69,7 +69,10 @@ pkg('util.cli', () => {
 		Object.keys(desc).forEach(k => {
 			var keys = aliasFrom(desc[k].alias).map(fieldNameToKey);
 			keys.push(fieldNameToKey(k));
-			this.descriptions.push(keys.join(', ') + '; type = ' + desc[k].type + (desc[k].description? '\n' + desc[k].description: ''))
+			this.descriptions.push(keys.join(', ') 
+				+ '; type = ' + desc[k].type 
+				+ (this.defaults[k]? '; default = ' + this.defaults[k]: '')
+				+ (desc[k].description? '\n' + desc[k].description: ''))
 		});
 		
 		this.multiples = {};

@@ -3,17 +3,18 @@ pkg('util.event', () => {
 	var id = -0xffffffff;
 	var getId = () => id++;
 	
-	var Event = function(){
+	var Event = function(name){
 		// this breaks instanceof
 		// allowing fancy thing like smth.onEvent(e => { ... })
-		if(this instanceof Event) return Event();
+		if(this instanceof Event) return Event(name);
 		
 		var result = function(newListener){
 			result.listen(newListener);
-			return this;
+			return this; // if used as method, will return base object - that is cool
 		}
 		
 		for(var i in Event.prototype) result[i] = Event.prototype[i];
+		result._eventName = name;
 		
 		result.start();
 		
@@ -34,10 +35,24 @@ pkg('util.event', () => {
 			if(l.eventListenerId) delete this.listeners[l.eventListenerId];
 			return this;
 		},
+		hasListeners: function(){
+			for(var i in this.listeners)
+				return true;
+			return false;
+		},
 		fire: function(d){
-			//console.trace('firing');
 			if(!this.active) throw 'Could not fire inactive event.';
-			for(var i in this.listeners) this.listeners[i](d);
+			let errors = [];
+			for(var i in this.listeners){
+				try {
+					this.listeners[i](d);
+				} catch(e){
+					log.error("Error executing listener of event" + (this._name ? " " + this._name: "") + ": " + e);
+					log.error(e.stack);
+					errors.push(e);
+				}
+			}
+			return errors;
 		},
 		stop: function(){
 			//console.trace('stopping');

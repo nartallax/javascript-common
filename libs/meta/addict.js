@@ -14,6 +14,9 @@
 		Addict.requestExternalPackage(имя_пакета) => пакет
 		alias: pkg.external(имя_пакета)
 		
+	получить исходный код пакета строкой:
+		pkg.sources(имя_пакета)
+		
 	определить точку входа:			
 		Addict.defineMain(функция) => Addict
 		alias: Addict.main
@@ -99,15 +102,16 @@ var Addict = (() => {
 		this.codeFixers = [];
 		this.isStartedUp = false;
 		this.resolver = null;
-		setImmediate(() => this.startTimeoutHandle || this.isStartedUp || fail('Expected application entry point to be defined synchronously at startup.'));
+		setTimeout(() => this.startTimeoutHandle || this.isStartedUp || fail('Expected application entry point to be defined synchronously at startup.'), 0);
 		
-		this.registerCodeFixer(new Addict.CodeFixer('auto_use_strict', code => '"use strict";\n' + code));
+		this.registerCodeFixer(new Addict.CodeFixer('auto_use_strict', code => '"use strict";' + code));
+		this.registerCodeFixer(new Addict.CodeFixer('name_the_source', (code, modName) => code + '\n//# sourceURL=' + modName));
 	};
 	
 	// Environment содержит информацию о среде, в которой в данный момент исполняется код
 	Addict.Environment = (() => {
 		
-		var Environment = function(type, global){ this.type = type; this.globals = global || globals[type](); }
+		var Environment = function(type, global){ this.type = type; this.globals = global || null; }
 		
 		var detectors = {
 			'browser': new Function("return this && typeof(window) !== 'undefined' && this === window"),
@@ -126,7 +130,7 @@ var Addict = (() => {
 			return new Environment(envs[0]);
 		}
 		
-		Environment.prototype.getGlobal = function(){ return this.globals }
+		Environment.prototype.getGlobal = function(){ return this.globals || globals[this.type]() }
 		
 		return Environment;
 
@@ -197,8 +201,21 @@ var Addict = (() => {
 				var getTotalPackageMap = rootPrefixMap => {
 					fs || (fs = require('fs'));
 					path || (path = require('path'));
+					var startedFile = process.argv[1];
+					
+					var fixedPrefixMap = rootPrefixMap;
+					if(startedFile){
+						fixedPrefixMap = {};
+						startedFile = path.dirname(startedFile);
+						Object.keys(rootPrefixMap).forEach(k => {
+							fixedPrefixMap[path.resolve(startedFile, k)] = rootPrefixMap[k];
+						});
+					}
+					
 					var result = {};
-					Object.keys(rootPrefixMap).forEach(root => getPackageMapForDirectory(root, rootPrefixMap[root], result))
+					Object.keys(fixedPrefixMap).forEach(root => {
+						getPackageMapForDirectory(root, fixedPrefixMap[root], result)
+					})
 					return result;
 				}
 				
@@ -381,7 +398,7 @@ var Addict = (() => {
 			forceResolveAndEvalDefinition: function(name){
 				var code = this.addict.resolver.codeByName(name);
 				
-				code = this.addict.fixCode(code);
+				code = this.addict.fixCode(code, name);
 				
 				this.addict.definitionStorage.withExpectation(name, () => {
 					var executedSuccessfully = false;
@@ -452,11 +469,11 @@ var Addict = (() => {
 		}
 		
 		CodeFixer.prototype = {
-			apply: function(code){
+			apply: function(code, moduleName){
 				try {
-					return this.fixAlgo(code);
+					return this.fixAlgo(code, moduleName);
 				} catch (e){
-					fail('Failed to apply fixer "' + this.name + '" to code.', e);
+					fail('Failed to apply fixer "' + this.name + '" to code of module "' + moduleName + '".', e);
 				}
 			}
 		}
@@ -471,8 +488,8 @@ var Addict = (() => {
 			return this;
 		},
 		
-		fixCode: function(code){
-			this.codeFixers.forEach(fixer => code = fixer.apply(code));
+		fixCode: function(code, moduleName){
+			this.codeFixers.forEach(fixer => code = fixer.apply(code, moduleName));
 			return code;
 		},
 		
@@ -582,13 +599,28 @@ var Addict = (() => {
 		
 		withClearResolutionCache: function(action){
 			var old = this.productStorage;
-			this.productStorage = new ProductStorage();
+			this.productStorage = new Addict.ProductStorage();
 			try {
 				action();
 			} finally {
 				this.productStorage = old;
 			}
 			return this;
+		},
+		
+		withNoAsyncBarrier: function(action){
+			var old = this.isStartedUp;
+			try {
+				this.isStartedUp = false;
+				action();
+			} finally {
+				this.isStartedUp = old;
+			}
+			return this;
+		},
+		
+		codeByName: function(name){
+			return this.resolver.codeByName(name);
 		},
 		
 		cleanup: function(action){
@@ -623,6 +655,7 @@ var Addict = (() => {
 (() => {
 	var pkg = (name, defOrEmpty) => Addict.pkg(name, defOrEmpty);;
 	pkg.external = name => Addict.requestExternalPackage(name);
+	pkg.sources = name => Addict.codeByName(name);
 	
 	switch(Addict.getEnvironment().type){
 		case 'node': 
@@ -637,3 +670,4 @@ var Addict = (() => {
 	}
 })();
 
+//# sourceURL=meta.addict

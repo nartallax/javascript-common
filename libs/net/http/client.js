@@ -1,0 +1,1 @@
+pkg("net.http.client", () => pkg("net.http.client." + pkg("meta.addict").getEnvironment().type));

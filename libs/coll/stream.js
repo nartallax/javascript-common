@@ -1,8 +1,7 @@
 // lazy sequence
 pkg('coll.stream', () => {
 	
-	var AsyncStream = pkg('coll.stream.async'),
-		fail = pkg('util.fail');
+	var fail = pkg('util.fail');
 	
 	var Stream = function(hasNext, next){
 		if(!(this instanceof Stream)) return new Stream(hasNext, next);
@@ -19,7 +18,6 @@ pkg('coll.stream', () => {
 	Stream.prototype = {
 		stream: function(){ return this },
 		array: function(arr){ return this.reduce((arr, x) => (arr.push(x), arr), arr || []); },
-		async: function(){ return new AsyncStream(cb => this.hasNext(cb), cb => this.next(cb)); },
 		
 		map: function(proc, index){
 			index = index || 0;
@@ -188,31 +186,6 @@ pkg('coll.stream', () => {
 				))
 			);
 		}
-		/*
-		eachAsync: function(onValue, after, threadCount){
-			if(!this.hasNext()) return (after(), undefined);
-			(onValue.length > 1) 
-				|| fail('Callback takes not enough arguments! Expected no lesser than two (for value and callback-for-callback).');
-			
-			(arguments.length < 3 || typeof(threadCount) !== 'number' || threadCount <= 0) && (threadCount = 1);
-			
-			var currentQuota = threadCount;
-			
-			var tryRunNext = () => {
-				if(currentQuota <= 0 || !this.hasNext()) return;
-				
-				currentQuota -= 1;
-				onValue(this.next(), () => {
-					currentQuota += 1;
-					(currentQuota === threadCount && !this.hasNext() && after)? (after(), (after = null)): tryRunNext();
-				});
-				
-				tryRunNext();
-			}
-			
-			tryRunNext();
-		}
-		*/
 	}
 
 	Stream.nums = (start, end, step) => {
@@ -221,14 +194,6 @@ pkg('coll.stream', () => {
 	}
 	
 	Stream.isStream = n => (n instanceof Stream);
-	
-	
-	/*
-	Object.keys(AsyncStream.prototype).forEach(k => {
-		(typeof(Stream.prototype[k]) === 'function') 
-			|| fail('Signature of Stream and AsyncStream methods "' + k + '" differs.')
-	})
-	*/
 	
 	return Stream;
 	
