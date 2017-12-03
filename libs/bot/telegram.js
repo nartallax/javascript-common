@@ -24,6 +24,7 @@ pkg('bot.telegram', () => {
 			this.onGroupChatCreated = new Event("TelegramBot.onGroupChatCreated");
 			this.onMemberJoin = new Event("TelegramBot.onMemberJoin");
 			this.onMemberLeave = new Event("TelegramBot.onMemberLeave");
+			this.onCallbackQuery = new Event("TelegramBot.onCallbackQuery");
 			
 			this.onError = new Event("TelegramBot.onError");
 		}
@@ -69,13 +70,19 @@ pkg('bot.telegram', () => {
 		_call(method, body){ return this.onError.hasListeners() ? this._callSafe(method, body) : this._callUnsafe(method, body) }
 		
 		// add some method-like functions to update object
-		_enchant(update){
+		_enchant(update, messageSource){
 			if(update.message){
-				update.message.reply = async str => {
-					str.replace(/\s/g, "") && await this.sendMessage(update.message.chat.id, str);
+				update.message.source = messageSource || "user";
+				update.message.reply = async (str, markup) => {
+					str.replace(/\s/g, "") && await this.sendMessage(update.message.chat.id, str, { reply_markup: markup });
 				}
 				if(update.message.chat)
 					update.message.chat.reply = update.message.reply;
+			}
+			if(update.callback_query){
+				update.callback_query.message.original_from = update.callback_query.message.from;
+				update.callback_query.message.from = update.callback_query.from;
+				this._enchant(update.callback_query, "callback_query");
 			}
 		}
 		
@@ -99,6 +106,7 @@ pkg('bot.telegram', () => {
 							
 						}
 						("edited_message" in update) && this.onMessageEdited.fire(update.edited_message);
+						("callback_query" in update) && this.onCallbackQuery.fire(update.callback_query);
 					});
 				} catch(e){
 					log.error("Failed to fetch and/or process update(s): " + e);
