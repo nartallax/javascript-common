@@ -71,11 +71,13 @@ pkg('bot.telegram', () => {
 		
 		// add some method-like functions to update object
 		_enchant(update, messageSource){
+			let reply = async (str, opts) => {
+				(str.replace(/\s/g, "") || Object.keys(opts || {}).length > 0) && await this.sendMessage(update.message.chat.id, str, opts);
+			}
 			if(update.message){
 				update.message.source = messageSource || "user";
-				update.message.reply = async (str, markup) => {
-					str.replace(/\s/g, "") && await this.sendMessage(update.message.chat.id, str, { reply_markup: markup });
-				}
+				update.message.reply = async (str, markup) => await reply(str, markup ? { reply_markup: markup } : null);
+				update.message.replyWithCitation = async (str, markup) => await reply(str, { reply_markup: markup, reply_to_message_id: update.message.message_id })
 				if(update.message.chat)
 					update.message.chat.reply = update.message.reply;
 			}
@@ -126,6 +128,7 @@ pkg('bot.telegram', () => {
 			otherParams.text = text;
 			otherParams.chat_id = chat;
 			otherParams.parse_mode = otherParams.parse_mode || "HTML";
+			//console.error(JSON.stringify(otherParams))
 			return this._call("sendMessage", otherParams);
 		}
 		getChat(chatId){ return this._call("getChat", {chat_id: chatId})  }
