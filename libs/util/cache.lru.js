@@ -3,12 +3,13 @@ pkg("util.cache.lru", () => {
 
 	class LRUCache {
 	
-		constructor(cacheSize, getData){
+		constructor(cacheSize, getData, translateKey){
 			if(cacheSize < 1) 
 				fail("Cache size expected to be >= 1.");
 			this._storage = {};
 			this._size = cacheSize;
 			this._getData = getData;
+			this._translateKey = translateKey || (x => x);
 		}
 		
 		_put(key, value){
@@ -39,8 +40,9 @@ pkg("util.cache.lru", () => {
 		}
 		
 		async get(key){
-			let value = key in this._storage? this._storage[key].value: await Promise.resolve(this._getData(key));
-			this._put(key, value);
+			let tkey = this._translateKey(key);
+			let value = tkey in this._storage? this._storage[tkey].value: await Promise.resolve(this._getData(key));
+			this._put(tkey, value);
 			return value;
 		}
 		
