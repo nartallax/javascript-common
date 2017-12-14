@@ -121,15 +121,21 @@ pkg('bot.telegram', () => {
 		stop(){ this._stopped = true; }
 		
 		getMe(){ return this._call("getMe") }
-		sendMessage(chat, text, otherParams){
+		async sendMessage(chat, text, otherParams){
 			(typeof(chat) === "number") || fail("Expected chat ID to be number.");
 			(typeof(text) === "string") || fail("Expected message to be string.");
 			otherParams = otherParams || {};
 			otherParams.text = text;
 			otherParams.chat_id = chat;
 			otherParams.parse_mode = otherParams.parse_mode || "HTML";
+			otherParams.disable_web_page_preview = typeof(otherParams.disable_web_page_preview) === "boolean"? otherParams.disable_web_page_preview: true;
 			//console.error(JSON.stringify(otherParams))
-			return this._call("sendMessage", otherParams);
+			try {
+				return await this._call("sendMessage", otherParams);
+			} catch(e){
+				log.error("Failed to transmit message to " + otherParams.chat_id + ":\n" + otherParams.text);
+				throw e;
+			}
 		}
 		getChat(chatId){ return this._call("getChat", {chat_id: chatId})  }
 	}
