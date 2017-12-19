@@ -138,6 +138,7 @@ pkg('bot.telegram', () => {
 			}
 		}
 		getChat(chatId){ return this._call("getChat", {chat_id: chatId})  }
+		getInvite(chatId){ return this._call("exportChatInviteLink", {chat_id: chatId}) }
 	}
 	
 	return TelegramBot;
