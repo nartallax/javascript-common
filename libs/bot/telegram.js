@@ -139,6 +139,14 @@ pkg('bot.telegram', () => {
 		}
 		getChat(chatId){ return this._call("getChat", {chat_id: chatId})  }
 		getInvite(chatId){ return this._call("exportChatInviteLink", {chat_id: chatId}) }
+		ban(chatId, userId, untilTimestamp){ 
+			let params = { chat_id: chatId, user_id: userId };
+			if(typeof(untilTimestamp) === "number")
+				params.until_date = untilTimestamp;
+			return this._call(params);
+		}
+		
+		unban(chatId, userId){ return this._call({chat_id: chatId, user_id: userId}) }
 	}
 	
 	return TelegramBot;
