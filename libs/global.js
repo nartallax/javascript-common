@@ -31,8 +31,12 @@ pkg('global', () => {
 		RejectionHandler(error => {
 			if(typeof(error) === 'object' && error && error.stack)
 				log.error('Unhandled promise rejection: ' + error.stack);
-			else if(error)
+			else if(error){
+				try {
+					error = JSON.stringify(error);
+				} catch(_){}
 				log.error('Unhandled promise rejection: ' + error);
+			}
 			else
 				log.error('Unhandled promise rejection. No additional information is supplied.'); // shit happens
 			typeof(process) !== "undefined" && process.exit(1);

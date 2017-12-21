@@ -5,7 +5,9 @@ pkg('util.lock', () => {
 			this._locked = false;
 		}
 		
-		_lock(){ this._locked = true }
+		_lock(){
+			this._locked = true 
+		}
 		_unlock(){
 			this._locked = false;
 			let lsers = this._lsers || [];
@@ -40,9 +42,11 @@ pkg('util.lock', () => {
 		async with(callback){
 			await this.wait();
 			this._lock();
-			let result = await Promise.resolve(callback);
-			this._unlock();
-			return result;
+			try {
+				return await callback();
+			} finally{
+				this._unlock();
+			}
 		}
 	}
 

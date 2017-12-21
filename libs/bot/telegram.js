@@ -2,7 +2,7 @@ pkg('bot.telegram', () => {
 	
 	let HttpClient = pkg("net.http.client"),
 		util = pkg.external("util"),
-		Event = pkg("util.event");
+		Event = pkg("util.event")
 	
 	class TelegramBot {
 		constructor(apiConfig){
