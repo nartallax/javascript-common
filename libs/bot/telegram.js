@@ -41,9 +41,9 @@ pkg('bot.telegram', () => {
 				log.error(e.stack);
 				throw e;
 			}
-			//console.log("querying " + methodName + " with " + body);
+			//console.error("querying " + methodName + " with " + body);
 			let resp = await this._client.post({url: this._urlOf(methodName), body: body, headers: {"Content-Type": "application/json"}});
-			//console.log("got resp from " + methodName);
+			//console.error("got resp from " + methodName);
 			try {
 				resp = JSON.parse(resp.data);
 			} catch(e){
@@ -143,10 +143,10 @@ pkg('bot.telegram', () => {
 			let params = { chat_id: chatId, user_id: userId };
 			if(typeof(untilTimestamp) === "number")
 				params.until_date = untilTimestamp;
-			return this._call(params);
+			return this._call("kickChatMember", params);
 		}
 		
-		unban(chatId, userId){ return this._call({chat_id: chatId, user_id: userId}) }
+		unban(chatId, userId){ return this._call("unbanChatMember", {chat_id: chatId, user_id: userId}) }
 	}
 	
 	return TelegramBot;
