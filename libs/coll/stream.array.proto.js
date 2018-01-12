@@ -75,7 +75,7 @@ pkg('coll.stream.array.proto', () => {
 		dropWhile: function(cond, index){
 			index = index || 0;
 			var i = -1, result = [];
-			while(++i < this.length && cond(this[i], index++));
+			while(++i < this.length && cond(this[i], index++)){}
 			return this.slice(i);
 		},
 		

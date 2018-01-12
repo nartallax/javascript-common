@@ -5,10 +5,10 @@ pkg('util.lock', () => {
 			this._locked = false;
 		}
 		
-		_lock(){
+		lock(){
 			this._locked = true 
 		}
-		_unlock(){
+		unlock(){
 			this._locked = false;
 			let lsers = this._lsers || [];
 			
@@ -27,25 +27,25 @@ pkg('util.lock', () => {
 				(this._lsers || (this._lsers = [])).push(ok);
 				
 				if(!this._locked){
-					this._lock();
-					setTimeout(() => this._unlock(), 1);
+					this.lock();
+					setTimeout(() => this.unlock(), 1);
 				}
 			});
 		}
 		
 		async acquire(){
 			await this.wait();
-			this._lock();
-			return () => this._unlock();
+			this.lock();
+			return () => this.unlock();
 		}
 		
 		async with(callback){
 			await this.wait();
-			this._lock();
+			this.lock();
 			try {
 				return await callback();
 			} finally{
-				this._unlock();
+				this.unlock();
 			}
 		}
 	}

@@ -181,6 +181,7 @@ pkg('coll.stream', () => {
 		return new Stream(step > 0? (() => start <= end): (() => start >= end), () => ((start += step), start - step));
 	}
 	
+	/*
 	//["toString","map","flatMap","flatten","filter","each","reduce","sum","product","max","min","size","append","take","takeWhile","drop","dropWhile","exists","tail","find","findIndex","groupBy","groupByCount","groupByAttribute","groupByComparison","stream","array","async","headAware"]
 	test("map", () => expect(["first", "second", "third"].stream().map(x => x.substr(0, 2)).array().join(',') === 'fi,se,th'));
 	test("flatMap", () => {
@@ -238,7 +239,7 @@ pkg('coll.stream', () => {
 	test('findIndex', () => expect([1, 3, 5, 2, 4, 6].stream().findIndex(x => x > 1 && x % 2 === 0) === 3));
 	test('groupBy', () => {
 	})
-	
+	*/
 	Stream.isStream = n => (n instanceof Stream);
 	
 	return Stream;

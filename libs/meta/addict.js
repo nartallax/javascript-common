@@ -228,7 +228,10 @@ var Addict = (() => {
 					return fs.readFileSync(packageMap[name], 'utf8');
 				}
 			},
-			'browser': (tagName, attrName) => name => {
+			'browser': (a, b) => name => {
+				if(typeof(a) === "function" && typeof(b) === "undefined")
+					return a(name);
+				
 				var tag, selector = tagName + '[' + attrName + '="' + name + '"]'
 				try {
 					tag = document.querySelector(selector)
@@ -600,6 +603,8 @@ var Addict = (() => {
 		
 		withFakeEnvironment: function(fakeEnv, action){
 			var prev = this.currentEnvironment;
+			if(typeof(fakeEnv) === "string")
+				fakeEnv = new Addict.Environment(fakeEnv)
 			this.currentEnvironment = fakeEnv;
 			try {
 				action();

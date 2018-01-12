@@ -12,9 +12,7 @@ pkg('global', () => {
 		'log': pkg('util.log'),
 		"sleep": pkg("util.sleep")
 	};
-	
-	var glob = Addict.getEnvironment().getGlobal();
-	Object.keys(directInclusions).forEach(k => glob[k] = directInclusions[k]);
+		
 	
 	pkg('util.class').modifyPrototype(); 
 	
