@@ -2,7 +2,8 @@ pkg("global.tiny", () => {
 	/* same as global, just without innecessary bloat */
 	
 	var Addict = pkg('meta.addict'),
-		RejectionHandler = pkg('util.rejection.handler');
+		RejectionHandler = pkg('util.rejection.handler'),
+		Polyfill = pkg("util.polyfill")
 	
 	var directInclusions = {
 		"fail": pkg("util.fail"),
@@ -10,6 +11,7 @@ pkg("global.tiny", () => {
 	};
 	
 	return () => {
+		Polyfill();
 		RejectionHandler(error => {
 			if(typeof(error) === 'object' && error && error.stack)
 				log.error('Unhandled promise rejection: ' + error.stack);

@@ -80,6 +80,11 @@
 var Addict = (() => {
 	'use strict';
 	
+	var forEach = (arr, cb) => {
+		for(var i = 0; i < arr.length; i++)
+			cb(arr[i], i);
+	}
+	
 	var fail = (message, error) => {
 		var errString = '';
 		
@@ -127,7 +132,10 @@ var Addict = (() => {
 		}
 		
 		Environment.detect = () => {
-			var envs = Object.keys(detectors).filter(key => detectors[key].call(null));
+			var envs = [];
+			for(var k in detectors)
+				if(detectors[k].call(null))
+					envs.push(k);
 			(envs.length > 1) && fail("Could not detect environment: multiple detectors triggered (" + envs.join(', ') + ")");
 			(envs.length < 1) && fail("Could not detect environment: no detectors triggered");
 			return new Environment(envs[0]);
@@ -181,24 +189,23 @@ var Addict = (() => {
 				var packageMap;
 				
 				var getPackageMapForDirectory = (root, prefix, container) => {
-					fs.readdirSync(root)
-						.forEach(entryName => {
-							var entryPath = path.join(root, entryName)
-							var fullEntryName = (prefix? prefix + '.': '') + entryName.toLowerCase().replace(/\.js$/, '')
-							if(fs.statSync(entryPath).isDirectory()){
-								getPackageMapForDirectory(entryPath, fullEntryName, container);
-							} else {
-								if(entryPath.match(filePathRegexp)){
-									if(!Addict.PackageName.isGood(fullEntryName)){
-										console.error("Package at " + entryPath + ' resolved to name "' + fullEntryName + 
-											'", which is not valid package name. This package is skipped and will not be accessible.'
-										);
-									} else {
-										container[fullEntryName] = entryPath;
-									}
+					forEach(fs.readdirSync(root), entryName => {
+						var entryPath = path.join(root, entryName)
+						var fullEntryName = (prefix? prefix + '.': '') + entryName.toLowerCase().replace(/\.js$/, '')
+						if(fs.statSync(entryPath).isDirectory()){
+							getPackageMapForDirectory(entryPath, fullEntryName, container);
+						} else {
+							if(entryPath.match(filePathRegexp)){
+								if(!Addict.PackageName.isGood(fullEntryName)){
+									console.error("Package at " + entryPath + ' resolved to name "' + fullEntryName + 
+										'", which is not valid package name. This package is skipped and will not be accessible.'
+									);
+								} else {
+									container[fullEntryName] = entryPath;
 								}
 							}
-						});
+						}
+					});
 				}
 				
 				var getTotalPackageMap = rootPrefixMap => {
@@ -210,15 +217,13 @@ var Addict = (() => {
 					if(startedFile){
 						fixedPrefixMap = {};
 						startedFile = path.dirname(startedFile);
-						Object.keys(rootPrefixMap).forEach(k => {
+						for(var k in rootPrefixMap)
 							fixedPrefixMap[path.resolve(startedFile, k)] = rootPrefixMap[k];
-						});
 					}
 					
 					var result = {};
-					Object.keys(fixedPrefixMap).forEach(root => {
+					for(var root in fixedPrefixMap)
 						getPackageMapForDirectory(root, fixedPrefixMap[root], result)
-					})
 					return result;
 				}
 				
@@ -504,7 +509,7 @@ var Addict = (() => {
 		},
 		
 		fixCode: function(code, moduleName){
-			this.codeFixers.forEach(fixer => code = fixer.apply(code, moduleName));
+			forEach(this.codeFixers, fixer => code = fixer.apply(code, moduleName));
 			return code;
 		},
 		
@@ -583,19 +588,18 @@ var Addict = (() => {
 			external = external === true;
 			var total = {}, stack = [name];
 			while(stack.length > 0){
-				this.executor.getDependenciesOf(stack.pop(), external)
-					.filter(x => !(x in total))
-					.forEach(x => {
-						total[x] = true;
-						stack.push(x)
-					});
+				let deps = this.executor.getDependenciesOf(stack.pop(), external).filter(x => !(x in total))
+				forEach(deps, x => {
+					total[x] = true;
+					stack.push(x)
+				});
 			}
 		
 			return Object.keys(total);
 		},
 		dependencyTreeOf: function(name){
 			var result = {};
-			this.executor.getDependenciesOf(name, false).forEach(name => result[name] = this.dependencyTreeOf(name))
+			forEach(this.executor.getDependenciesOf(name, false), name => result[name] = this.dependencyTreeOf(name));
 			return result;
 		},
 		
@@ -656,11 +660,9 @@ var Addict = (() => {
 	
 	(() => {
 		var defaultInstance = new Addict();
-		Object.keys(Addict.prototype)
-			.filter(key => typeof(Addict.prototype[key]) === 'function')
-			.forEach(key => {
+		for(let key in Addict.prototype)
+			if(typeof(Addict.prototype[key]) === 'function')
 				Addict[key] = function(){ return defaultInstance[key].apply(defaultInstance, arguments) }
-			})
 			
 		defaultInstance.definitionStorage.forceStore('meta.addict', () => Addict);
 	})();

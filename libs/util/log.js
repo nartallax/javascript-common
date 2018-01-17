@@ -17,7 +17,7 @@ pkg('util.log', () => {
 				}
 			case 'undefined': return 'undefined';
 			case 'string': return smth;
-			case 'number': return Number.isNaN(smth)? 'NaN': smth + '';
+			case 'number': return smth !== smth? 'NaN': smth + '';
 			case "boolean":	return smth? 'true': 'false';
 			case 'symbol': return smth.toString();
 			default: return smth + '';
