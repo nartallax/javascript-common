@@ -15,7 +15,7 @@ require('../../javascript-common/libs/meta/addict.js')
 		if(cliArgs.help){
 			cli.printHelp();
 		} else {
-			let Event = require("util.event");
+			let Event = pkg("util.event");
 			(async () => {
 				log("Hello world!");
 				

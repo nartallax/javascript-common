@@ -34,16 +34,18 @@ pkg('util.lock', () => {
 		}
 		
 		async acquire(){
-			await this.wait();
+			while(this._locked)
+				await this.wait();
 			this.lock();
 			return () => this.unlock();
 		}
 		
 		async with(callback){
-			await this.wait();
+			while(this._locked)
+				await this.wait();
 			this.lock();
 			try {
-				return await callback();
+				return await Promise.resolve(callback());
 			} finally{
 				this.unlock();
 			}
