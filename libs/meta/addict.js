@@ -237,6 +237,9 @@ var Addict = (() => {
 				if(typeof(a) === "function" && typeof(b) === "undefined")
 					return a(name);
 				
+				var tagName = a;
+				var attrName = b;
+				
 				var tag, selector = tagName + '[' + attrName + '="' + name + '"]'
 				try {
 					tag = document.querySelector(selector)

@@ -54,6 +54,13 @@ pkg('html.packer', () => {
 					.resolvers(['browser', '${ this.jsTag }', '${ this.jsTagNameAttr }'])
 					.main(() => {
 						let app = pkg('${ this.entryPoint }');
+						
+						let packageTags = document.querySelectorAll('div[data-addict-package-name]');
+						let arr = [];
+						for(let i = 0; i < packageTags.length; i++)
+							arr.push(packageTags[i]);
+						arr.forEach(x => x.parentNode.removeChild(x));
+						
 						typeof(app) === 'function'? 
 							app(): 
 							console.warn('It is expected for entry point package (${ this.entryPoint }) to return function; got ' + typeof(app) + ' instead.');

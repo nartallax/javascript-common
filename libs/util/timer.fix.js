@@ -9,9 +9,9 @@ pkg('util.timer.fix', () => {
 			(arguments.length === 2) || fail('Expected timer function to receive exactly 2 arguments, got ' + arguments.length + ' instead.');
 			
 			if(typeof(a) === 'number' && typeof(b) === 'function'){
-				sourceFunction(b, a);
+				return sourceFunction(b, a);
 			} else if(typeof(b) === 'number' && typeof(a) === 'function'){
-				sourceFunction(a, b);
+				return sourceFunction(a, b);
 			} else {
 				fail('Expected timer function to receive arguments of type number and function (or vice versa); got ' + typeof(a) + ' and ' + typeof(b) + ' instead.');
 			}

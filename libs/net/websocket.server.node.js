@@ -13,11 +13,11 @@ pkg('net.websocket.server.node', () => {
 		start(){
 			this.server && fail('Could not start websocket server: already running.')
 			this.server = new ws.Server({port: this.port});
-			this.server.on('connection', (socket, request) => {
+			this.server.on("connection", (socket, request) => {
 				var onMessage = new Event(),
 					onDisconnect = new Event();
 					
-				socket.on('close', () => {
+				socket.on("close", () => {
 					//socket.close();
 					socket.terminate();
 					onDisconnect.fire();
@@ -25,11 +25,12 @@ pkg('net.websocket.server.node', () => {
 					onMessage.stop();
 					onDisconnect.stop();
 				});
-				socket.on('message', msg => onMessage.fire(msg));
+				socket.on("message", msg => onMessage.fire(msg));
 				
-				this.onConnect.fire({ 
+				this.onConnect.fire({
 					onMessage: onMessage, 
 					onDisconnect: onDisconnect,
+					disconnect: () => socket.terminate(),
 					write: msg => socket.send(msg),
 					ip: request.connection.remoteAddress 
 				})
