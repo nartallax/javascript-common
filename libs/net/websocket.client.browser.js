@@ -9,7 +9,7 @@ pkg('net.websocket.client.browser', () => {
 			this.onClose = new Event();
 		}
 		
-		async start(){
+		start(){
 			return new Promise((ok, bad) => {
 				this.socket && fail('Could not start socket connection: already connected.');
 				this.socket = new WebSocket(this.url);
