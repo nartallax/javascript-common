@@ -22,33 +22,35 @@ pkg('util.lock', () => {
 		
 		acquired(){ return this._locked }
 		
-		wait(){
-			return new Promise((ok, bad) => {
-				(this._lsers || (this._lsers = [])).push(ok);
+		wait(cb){
+			(this._lsers || (this._lsers = [])).push(cb);
 				
-				if(!this._locked){
-					this.lock();
-					setTimeout(() => this.unlock(), 1);
-				}
+			if(!this._locked){
+				this.lock();
+				setTimeout(() => this.unlock(), 1);
+			}
+		}
+		
+		acquire(cb){
+			this.wait(() => {
+				this.lock();
+				return () => this.unlock();
 			});
 		}
 		
-		async acquire(){
-			while(this._locked)
-				await this.wait();
-			this.lock();
-			return () => this.unlock();
-		}
-		
-		async with(callback){
-			while(this._locked)
-				await this.wait();
-			this.lock();
-			try {
-				return await Promise.resolve(callback());
-			} finally{
-				this.unlock();
-			}
+		with(callback){
+			return new Promise((ok, bad) => {
+				this.wait(async () => {
+					this.lock();
+					try {
+						ok(await Promise.resolve(callback()));
+					} catch(e) {
+						bad(e)
+					} finally{
+						this.unlock();
+					}
+				});
+			});
 		}
 	}
 
