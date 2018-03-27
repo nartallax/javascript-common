@@ -34,7 +34,7 @@ pkg('util.lock', () => {
 		acquire(cb){
 			this.wait(() => {
 				this.lock();
-				return () => this.unlock();
+				cb(() => this.unlock());
 			});
 		}
 		
