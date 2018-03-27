@@ -58,7 +58,7 @@ pkg('net.http.client.node', () => {
 				const externalLib = protocol === 'https'? https: http;
 				
 				const options = {
-					hostname: parsedUrl.host,
+					hostname: parsedUrl.hostname,
 					path: parsedUrl.path,
 					port: parsedUrl.port || (protocol === 'https'? 443: 80),
 					method: method,
