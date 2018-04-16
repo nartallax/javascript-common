@@ -62,6 +62,7 @@ pkg('win.user32', () => {
 		GetWindowThreadProcessId: ['ulong', ['long', ref.refType('ulong')]],
 		GetWindow: ['long', ['long', 'uint32']],
 		PostMessageA: ['bool', ['long', 'uint', 'long', 'long']],
+		PostMessageW: ['bool', ['long', 'uint', 'long', 'long']],
 		SendMessageA: ['bool', ['long', 'uint', 'long', 'long']],
 		MapVirtualKeyA: ['uint', ['uint', 'uint']],
 		SetForegroundWindow: ['bool', ['long']],

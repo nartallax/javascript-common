@@ -40,7 +40,7 @@ pkg('win.window', () => {
 		},
 		
 		sendChar: function(ch){
-			winapi.PostMessageA(this.hwnd, winapi.WM_CHAR, ch.charCodeAt(0), 0);
+			winapi.PostMessageW(this.hwnd, winapi.WM_CHAR, ch.charCodeAt(0), 0);
 		},
 		
 		sendKeyPress: function(vk, isDown){
@@ -55,7 +55,7 @@ pkg('win.window', () => {
 					this.sendKeyPress(vk, true);
 					(this.flags.sendDownOnly || this.sendKeyPress(vk, false));
 				} else {
-					sendKeyPress(vk, isDown);
+					this.sendKeyPress(vk, isDown);
 				}
 			}
 			
