@@ -288,6 +288,7 @@ pkg("util.keccak", () => {
 		
 		var iterlim = ~~(~~((P.length * 8) / 2) / r), i, j, k;
 		for(i = 0; i < iterlim; i++){
+			console.log(JSON.stringify(S));
 			var Pi = strToTable(P.substring(i * (~~((2 * r)/8)), (i + 1) * (~~((2 * r)/8))) + strrep('00',~~(c/8)));
 			for(j = 0; j < 5; j++) 
 				for(k = 0; k < 5; k++) 
@@ -297,6 +298,7 @@ pkg("util.keccak", () => {
 		
 		var Z = '', outputLength = n;
 		while(outputLength > 0){
+			console.log(JSON.stringify(S));
 			Z += tableToStr(S).substring(0, ~~((r * 2)/8));
 			outputLength -= r;
 			if(outputLength > 0) S = KeccakF(S);
@@ -322,10 +324,8 @@ pkg("util.keccak", () => {
 		return utf8;
 	}
 	
-	var salt = '';
-	
 	var hashString = function(str){ 
-		str = bytes(toUTF8Array(str + salt)).revhex();
+		str = bytes(toUTF8Array(str)).revhex();
 		return Keccak(str.length * 4, str, 576, 1024, 512);
 	}
 			
