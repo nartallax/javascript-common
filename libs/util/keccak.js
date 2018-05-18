@@ -77,7 +77,7 @@ pkg("util.keccak", () => {
 		
 		// basic data operationa
 		var xor = function(a, b){
-			console.error("xor", a.length, b.length);
+			//console.error("xor", a.length, b.length);
 			var result = [], l = a.length > b.length? a.length: b.length, i = -1;
 			while(++i < l) result.push((a[i] || 0) ^ (b[i] || 0));
 			return result;
@@ -101,7 +101,8 @@ pkg("util.keccak", () => {
 			var result = [], zeroes = ~~(v / 8), b, p;
 			while(zeroes-->0) result.push(0);
 			v %= 8;
-			for(var i in a){
+			//for(var i in a){
+			for(var i = 0; i < a.length; i++){
 				b = a[i];
 				p = a[i - 1] || 0;
 				b = (b * 256) + p;
