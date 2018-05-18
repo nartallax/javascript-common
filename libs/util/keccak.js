@@ -94,7 +94,9 @@ pkg("util.keccak", () => {
 		}
 		var inv = function(a){
 			var result = [];
-			for(var i in a) result.push(~a[i]);
+			//for(var i in a)
+			for(var i = 0; i < a.length; i++)
+				result.push(~a[i]);
 			return result;
 		}
 		var rol = function(a, v){
@@ -222,7 +224,9 @@ pkg("util.keccak", () => {
 	var tableToStr = function(table){
 		if((w % 8) !== 0) throw new Error("W is not multiple of 8");
 		if(table.length !== 5) throw new Error("Table must be 5x5");
-		for(var i in table) if(table[i].length !== 5) throw new Error("Table must be 5x5");
+		//for(var i in table) 
+		for(var i = 0; i < table.length; i++)
+			if(table[i].length !== 5) throw new Error("Table must be 5x5");
 		
 		var output = '', i, j;
 		for(i = 0; i < 5; i++)
