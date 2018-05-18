@@ -77,6 +77,7 @@ pkg("util.keccak", () => {
 		
 		// basic data operationa
 		var xor = function(a, b){
+			console.error("xor", a.length, b.length);
 			var result = [], l = a.length > b.length? a.length: b.length, i = -1;
 			while(++i < l) result.push((a[i] || 0) ^ (b[i] || 0));
 			return result;
@@ -288,17 +289,18 @@ pkg("util.keccak", () => {
 		
 		var iterlim = ~~(~~((P.length * 8) / 2) / r), i, j, k;
 		for(i = 0; i < iterlim; i++){
-			console.log(JSON.stringify(S));
+			console.error("iterlim start", JSON.stringify(S));
 			var Pi = strToTable(P.substring(i * (~~((2 * r)/8)), (i + 1) * (~~((2 * r)/8))) + strrep('00',~~(c/8)));
 			for(j = 0; j < 5; j++) 
 				for(k = 0; k < 5; k++) 
 					S[k][j] = Pi[k][j].xor(S[k][j]);
+			console.error("iterlim mid", JSON.stringify(S));
 			S = KeccakF(S);
 		}
 		
 		var Z = '', outputLength = n;
 		while(outputLength > 0){
-			console.log(JSON.stringify(S));
+			console.error("outlen", JSON.stringify(S));
 			Z += tableToStr(S).substring(0, ~~((r * 2)/8));
 			outputLength -= r;
 			if(outputLength > 0) S = KeccakF(S);
