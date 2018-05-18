@@ -44,7 +44,7 @@ pkg("util.keccak", () => {
 				case 'number': this.val = splitByBytes(v); break;
 				case 'string': this.val = hexToBytes(inv? bytes(v).revhex(): v); break;
 				case 'object': this.val = v; break; // assuming array
-				default: throw "Could not create bytes of '"  + v + "'.";
+				default: throw new Error("Could not create bytes of '"  + v + "'.");
 			}
 			return this;
 		}
@@ -208,8 +208,8 @@ pkg("util.keccak", () => {
 	var strrep = function(str, rep) { var res = ''; while(rep-->0) res += str; return res; }
 	
 	var strToTable = function(str){
-		if((w % 8) !== 0) throw "W is not multiple of 8";
-		if(str.length !== (~~((2 * b)/8))) throw "String could not be divided by blocks";
+		if((w % 8) !== 0) throw new Error("W is not multiple of 8");
+		if(str.length !== (~~((2 * b)/8))) throw new Error("String could not be divided by blocks");
 		var i, j, output = [[],[],[],[],[]];
 		for(i = 0; i < 5; i++)
 			for(j = 0; j < 5; j++)
@@ -218,9 +218,9 @@ pkg("util.keccak", () => {
 	}
 	
 	var tableToStr = function(table){
-		if((w % 8) !== 0) throw "W is not multiple of 8";
-		if(table.length !== 5) throw "Table must be 5x5";
-		for(var i in table) if(table[i].length !== 5) throw "Table must be 5x5";
+		if((w % 8) !== 0) throw new Error("W is not multiple of 8");
+		if(table.length !== 5) throw new Error("Table must be 5x5");
+		for(var i in table) if(table[i].length !== 5) throw new Error("Table must be 5x5");
 		
 		var output = '', i, j;
 		for(i = 0; i < 5; i++)
@@ -231,7 +231,7 @@ pkg("util.keccak", () => {
 	
 	var init = function(initval){
 		if(initval !== 25 && initval !== 50 && initval !== 100 && initval !== 200 && initval !== 400 && initval !== 800 && initval !== 1600)
-			throw "Unsupported init value.";
+			throw new Error("Unsupported init value.");
 			
 		b = initval;
 		w = ~~(b / 25);
@@ -256,9 +256,9 @@ pkg("util.keccak", () => {
 	}
 	
 	var pad10star1 = function(len, str, n){
-		if((n % 8) !== 0) throw "N is not multiple of 8."
+		if((n % 8) !== 0) throw new Error("N is not multiple of 8.")
 		if((str.length % 2) !== 0) str += '0';
-		if(len > ((~~(str.length / 2)) * 8)) throw "the string is too short to contain the number of bits announced";
+		if(len > ((~~(str.length / 2)) * 8)) throw new Error("the string is too short to contain the number of bits announced");
 		
 		var nrBytesFilled = ~~(len/8), nbrBitsFilled = len % 8, l = len % n, myByte, nInRange = (n < 10 && n > 3);
 		
@@ -279,8 +279,8 @@ pkg("util.keccak", () => {
 		if(c === undefined) c = 576;
 		if(n === undefined) n = 1024;
 		
-		if((r < 0) || ((r % 8) !== 0)) throw 'r must be a multiple of 8 in this implementation';
-		if((n % 8) !== 0) throw 'outputLength must be a multiple of 8';
+		if((r < 0) || ((r % 8) !== 0)) throw new Error('r must be a multiple of 8 in this implementation');
+		if((n % 8) !== 0) throw new Error('outputLength must be a multiple of 8');
 		
 		init(r + c);
 		

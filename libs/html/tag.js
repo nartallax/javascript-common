@@ -1,35 +1,67 @@
-pkg('html.tag', () => {
+pkg("html.tag", () => {
 
-	return (name, attrs, children) => {
-		attrs = attrs || {};
-		var result = document.createElement(name);
+	let isDomElement = x => {
+		try {
+			return x instanceof HTMLElement;
+		} catch(e){
+			return typeof(x) === "object" 
+				&& x.nodeType === 1 
+				&& typeof(obj.style) === "object"
+				&& typeof(obj.ownerDocument) === "object";
+		}
+	}
+
+	let tag = params => {
+		params = params || {};
+		let el = document.createElement(params.tagName || "div");
+		delete params.tagName;
 		
-		if('class' in attrs) {
-			result.className = attrs['class'];
-			delete attrs['class'];
+		if("class" in params){
+			el.className = params.class;
+			delete params.class;
 		}
 		
-		if('style' in attrs) {
-			result.style.cssText = attrs['style'];
-			delete attrs['style'];
+		if("style" in params){
+			el.style.cssText = params.style;
+			delete params.style;
 		}
 		
-		if('text' in attrs){
-			result.textContent = attrs.text;
-			delete attrs.text;
+		if("parent" in params){
+			params.parent.appendChild(el);
+			delete params.parent;
 		}
 		
-		for(var i in attrs) {
-			if(i.startsWith('on')){
-				result[i] = attrs[i] // directly assigned event listeners
-			} else {
-				result.setAttribute(i, attrs[i]);
+		if("text" in params){
+			el.textContent = params.text;
+			delete params.text;
+		}
+		
+		if("children" in params){
+			params.children.forEach(ch => {
+				isDomElement(ch) || (ch = tag(ch));
+				el.appendChild(ch);
+			});
+			delete params.children;
+		}
+		
+		if("value" in params){
+			el.value = params.value;
+			delete params.value;
+		}
+		
+		for(let k in params){
+			if(params.hasOwnProperty(k)){
+				if(k.match(/^on/)){
+					el[k] = params[k];
+				} else {
+					el.setAttribute(k, params[k])
+				}
 			}
 		}
-		
-		children && children.each(x => result.appendChild(x));
-		
-		return result;
+			
+		return el;
 	}
+	
+	return tag;
 
 });
